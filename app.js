@@ -158,14 +158,24 @@ function renderChips() {
   facs.forEach(function (f) { tot += facCount(f); });
   var cc = factory === '' ? tot : facCount(factory);
   h += '<button type="button" class="ddbtn" aria-haspopup="listbox" aria-expanded="' + ddOpen + '"><span class="ddl">المصنع</span><b>' + (factory === '' ? 'كل المصانع' : esc(factory)) + '</b>' + (cc ? '<span class="badge">' + cc + '</span>' : '') + '<i class="ddar" aria-hidden="true"></i></button>';
-  h += '<div class="ddlist" role="listbox"' + (ddOpen ? '' : ' hidden') + '><button type="button" role="option" class="ddi" aria-selected="' + (factory === '') + '" data-f="">كل المصانع</button>';
+  h += '<div class="ddlist" role="listbox"' + (ddOpen ? '' : ' hidden') + '><input type="search" id="ddq" class="ddq" placeholder="اكتب اسم المصنع..." autocomplete="off" aria-label="بحث عن مصنع"><button type="button" role="option" class="ddi" aria-selected="' + (factory === '') + '" data-f="">كل المصانع</button>';
   facs.forEach(function (f) {
     var c = facCount(f);
     h += '<button type="button" role="option" class="ddi" aria-selected="' + (factory === f) + '" data-f="' + esc(f) + '"><span>' + esc(f) + '</span>' + (c ? '<span class="badge">' + c + '</span>' : '') + '</button>';
   });
-  h += '</div>';
+  h += '<div class="ddnone" id="ddnone" hidden>مفيش مصنع بالاسم ده</div></div>';
   $('chips').innerHTML = h;
+  if (ddOpen) { var qi = $('ddq'); if (qi) qi.focus(); }
 }
+$('chips').addEventListener('input', function (e) {
+  if (e.target.id !== 'ddq') return;
+  var t = norm(e.target.value), n = 0;
+  Array.prototype.forEach.call($('chips').querySelectorAll('.ddi'), function (b) {
+    var ok = !t || norm(b.getAttribute('data-f') || 'كل المصانع').indexOf(t) >= 0;
+    b.hidden = !ok; if (ok) n++;
+  });
+  $('ddnone').hidden = n > 0;
+});
 function renderTabs() {
   var c = cur(); if (!c) return;
   var t = calc(c);
