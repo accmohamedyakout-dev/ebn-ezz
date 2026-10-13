@@ -671,7 +671,7 @@ function show(v) {
   view = v;
   $('v-models').hidden = v !== 'm'; $('v-inv').hidden = v !== 'i'; $('v-set').hidden = v !== 's';
   $('tab-m').setAttribute('aria-selected', v === 'm'); $('tab-i').setAttribute('aria-selected', v === 'i'); $('tab-s').setAttribute('aria-selected', v === 's');
-  $('ttl').textContent = v === 'm' ? 'بحث برقم الموديل' : v === 'i' ? 'الفواتير' : 'الإعدادات';
+  $('ttl').textContent = v === 'm' ? 'ابن عز لملابس الأطفال' : v === 'i' ? 'الفواتير' : 'الإعدادات';
   if (v === 'i') showSub(invSub); else if (v === 'm') { renderChips(); renderModels(); } else renderSettings();
   window.scrollTo(0, 0);
 }
