@@ -18,7 +18,7 @@
 </head>
 <body>
 <div class="wrap">
-  <div class="brand"><img src="logo.png" alt="ابن عز لملابس الأطفال" width="52" height="62"><h1 id="ttl">بحث برقم الموديل</h1></div>
+  <div class="brand"><img src="icon-192.png" alt="ابن عز لملابس الأطفال" width="56" height="56" style="border-radius:14px;box-shadow:0 3px 8px rgba(0,0,0,.25)"><h1 id="ttl">بحث برقم الموديل</h1></div>
 
   <div id="v-models">
     <header>
@@ -55,6 +55,7 @@
         <button type="button" id="h-today" aria-pressed="true">النهارده</button>
         <button type="button" id="h-all" aria-pressed="false">الكل</button>
       </div>
+      <button class="btn sec" id="hexp" type="button">تصدير الفواتير المعروضة (PDF)</button>
       <div id="hist"></div>
     </div>
   </div>
@@ -74,7 +75,8 @@
       <div class="col">
         <button class="btn" id="bk" type="button">تحميل نسخة احتياطية</button>
         <button class="btn sec" id="rs" type="button">استرجاع نسخة احتياطية</button>
-        <button class="btn sec" id="csv" type="button">تصدير الفواتير المقفولة (إكسل)</button>
+        <button class="btn sec" id="pdf-today" type="button">تصدير فواتير النهارده (PDF)</button>
+        <button class="btn sec" id="pdf-all" type="button">تصدير كل الفواتير المقفولة (PDF)</button>
       </div>
       <input id="rsf" type="file" accept=".json,application/json" hidden>
       <div id="rsmsg"></div>
@@ -91,7 +93,6 @@
 </div>
 
 <div id="toast" role="status" aria-live="polite" hidden></div>
-<div id="printarea"></div>
 
 <nav class="tabs" aria-label="التبويبات"><div class="tabs-in">
   <button class="tab" id="tab-m" role="tab" aria-selected="true" type="button">الموديلات</button>

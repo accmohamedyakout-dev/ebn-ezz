@@ -219,28 +219,32 @@ function renderInv() {
     h += '</div><div class="total net"><span>صافي الفاتورة</span><b id="t-net">' + fmt(t.net) + '</b></div>';
     h += '<div class="btns">' + (c.closed ? '<button class="btn" id="copy" type="button">نسخ</button><button class="btn" id="share" type="button">مشاركة</button>' :
       '<button class="btn primary" id="close" type="button">إقفال الفاتورة</button><button class="btn" id="copy" type="button">نسخ</button>') + '</div>';
-    h += '<div class="btns"><button class="btn sec" id="print" type="button">طباعة / PDF</button>' + (c.closed ? '<button class="btn sec" id="reopen" type="button">إعادة فتح</button>' : '<button class="btn sec" id="share" type="button">مشاركة</button>') + '</div>';
+    h += '<div class="btns"><button class="btn sec" id="exp" type="button">تصدير PDF</button>' + (c.closed ? '<button class="btn sec" id="reopen" type="button">إعادة فتح</button>' : '<button class="btn sec" id="share" type="button">مشاركة</button>') + '</div>';
   }
   h += '<div class="btns"><button class="btn sec" id="del" type="button">حذف الفاتورة ' + c.no + '</button></div>';
   h += '<label class="opt"><input type="checkbox" id="renum"' + (S.renum ? ' checked' : '') + '><span>ترقيم الفواتير يرجع من 1 بعد الحذف<small>مثال: لو مسحت فاتورة 2 من 3، فاتورة 3 تبقى رقم 2.</small></span></label>';
   h += '<div class="note" id="msg" aria-live="polite">' + (closedN ? ('الفواتير المقفولة: ' + closedN + ' - مجموع صافيها ' + fmt(r2(closedSum)) + '. ') : '') + 'الفواتير بتتحفظ على الجهاز ده.</div>';
   $('inv').innerHTML = h;
 }
-function renderHist() {
+function histList() {
   var q = norm($('hq').value), today = dstr(Date.now());
   var list = S.invs.filter(function (v) { return v.closed && v.snap; });
   if (histScope === 'today') list = list.filter(function (v) { return dstr(v.at) === today; });
   if (q) list = list.filter(function (v) { return String(v.no) === q || norm(v.cust).indexOf(q) > -1; });
-  list.sort(function (a, b) { return b.at - a.at; });
+  return list.sort(function (a, b) { return b.at - a.at; });
+}
+function renderHist() {
+  var list = histList();
+  $('hexp').hidden = !list.length;
   if (!list.length) { $('hist').innerHTML = '<div class="empty">' + (histScope === 'today' ? 'مفيش فواتير مقفولة النهارده.' : 'مفيش فواتير مقفولة.') + '</div>'; return; }
-  var days = [], map = {};
-  list.forEach(function (v) { var k = dstr(v.at); if (!map[k]) { map[k] = { k: k, items: [], sum: 0 }; days.push(map[k]); } map[k].items.push(v); map[k].sum += v.snap.net; });
-  var all = 0; list.forEach(function (v) { all += v.snap.net; });
+  var days = [], map = {}, all = 0;
+  list.forEach(function (v) { var k = dstr(v.at); if (!map[k]) { map[k] = { k: k, items: [], sum: 0 }; days.push(map[k]); } map[k].items.push(v); map[k].sum += v.snap.net; all += v.snap.net; });
   var h = '<div class="note">' + list.length + ' فاتورة - مجموع الصافي ' + fmt(r2(all)) + '</div>';
   days.forEach(function (d) {
     h += '<div class="dayh"><span>' + d.k + '</span><small>' + d.items.length + ' فاتورة - ' + fmt(r2(d.sum)) + '</small></div>';
     d.items.forEach(function (v) {
-      h += '<button class="hrow" type="button" data-open="' + v.id + '"><span><span class="n">فاتورة ' + v.no + '</span><br><span class="c">' + esc(v.cust || 'بدون اسم') + ' - ' + tstr(v.at) + ' - ' + v.snap.pcs + ' قطعة</span></span><b>' + fmt(v.snap.net) + '</b></button>';
+      h += '<div class="hwrap"><button class="hrow" type="button" data-open="' + v.id + '"><span><span class="n">فاتورة ' + v.no + '</span><br><span class="c">' + esc(v.cust || 'بدون اسم') + ' - ' + tstr(v.at) + ' - ' + v.snap.pcs + ' قطعة</span></span><b>' + fmt(v.snap.net) + '</b></button>' +
+        '<button class="pdfb" type="button" data-pdf="' + v.id + '" aria-label="تصدير فاتورة ' + v.no + ' PDF">PDF</button></div>';
     });
   });
   $('hist').innerHTML = h;
@@ -266,20 +270,6 @@ function invText(c) {
   if (t.disc) out.push('الخصم' + (c.dtype === 'pct' ? ' (' + fmt(c.dval) + '%)' : '') + ': ' + fmt(t.disc));
   out.push('الصافي: ' + fmt(t.net));
   return out.join('\n');
-}
-function printInv(c) {
-  var t = calc(c), ls = lines(c), rows = '';
-  allFacs(ls).forEach(function (f) {
-    var items = ls.filter(function (l) { return l.f === f; }); if (!items.length) return;
-    rows += '<tr class="fh"><td colspan="4">' + esc(f) + '</td></tr>';
-    items.forEach(function (l) { rows += '<tr><td>' + esc(l.m) + '</td><td>' + l.q + '</td><td>' + fmt(l.p) + '</td><td>' + fmt(r2(l.q * l.p)) + '</td></tr>'; });
-  });
-  var foot = '<tr class="tot"><td colspan="3">الإجمالي (' + t.pcs + ' قطعة)</td><td>' + fmt(t.gross) + '</td></tr>';
-  if (t.disc) foot += '<tr class="tot"><td colspan="3">الخصم' + (c.dtype === 'pct' ? ' (' + fmt(c.dval) + '%)' : '') + '</td><td>' + fmt(t.disc) + '</td></tr>';
-  foot += '<tr class="tot"><td colspan="3">صافي الفاتورة</td><td>' + fmt(t.net) + '</td></tr>';
-  $('printarea').innerHTML = '<div class="ph"><img src="logo.png" alt=""><div><h1>ابن عز لملابس الأطفال</h1><div>فاتورة رقم ' + c.no + ' - ' + dstr(c.at || Date.now()) + '</div>' + (c.cust ? '<div>العميل: ' + esc(c.cust) + '</div>' : '') + '</div></div>' +
-    '<table><thead><tr><th>الموديل</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead><tbody>' + rows + foot + '</tbody></table>';
-  window.print();
 }
 function setQty(id, q) {
   q = Math.max(0, Math.min(9999, parseInt(q, 10) || 0));
@@ -464,22 +454,10 @@ function applyImport() {
   $('imp').innerHTML = ''; renderSettings(); renderChips(); renderTabs();
   toast('اتحدّثت الأسعار: ' + P.items.length + ' موديل.');
 }
-function dl(name, text, mime) {
-  var b = new Blob([text], { type: mime }), a = document.createElement('a');
+function dl(name, data, mime) {
+  var b = data instanceof Blob ? data : new Blob([data], { type: mime }), a = document.createElement('a');
   a.href = URL.createObjectURL(b); a.download = name; document.body.appendChild(a); a.click();
   setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
-}
-function exportCSV() {
-  var q = function (v) { v = String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
-  var rows = [['رقم الفاتورة', 'التاريخ', 'الساعة', 'العميل', 'المصنع', 'رقم الموديل', 'الكمية', 'سعر القطعة', 'إجمالي السطر', 'إجمالي الفاتورة', 'الخصم', 'صافي الفاتورة']];
-  var n = 0;
-  S.invs.filter(function (v) { return v.closed && v.snap; }).sort(function (a, b) { return a.at - b.at; }).forEach(function (v) {
-    n++; v.snap.lines.forEach(function (l, i) {
-      rows.push([v.no, dstr(v.at), tstr(v.at), v.cust, l.f, l.m, l.q, l.p, r2(l.q * l.p), i ? '' : v.snap.gross, i ? '' : v.snap.disc, i ? '' : v.snap.net]);
-    });
-  });
-  if (!n) { toast('مفيش فواتير مقفولة تتصدّر.'); return; }
-  dl('فواتير-ابن-عز-' + new Date().toISOString().slice(0, 10) + '.csv', '﻿' + rows.map(function (r) { return r.map(q).join(','); }).join('\r\n'), 'text/csv;charset=utf-8');
 }
 function backup() {
   dl('نسخة-ابن-عز-' + new Date().toISOString().slice(0, 10) + '.json', JSON.stringify({ app: 'ebn-ezz', version: 1, savedAt: Date.now(), products: { items: plain(P.items), at: P.at }, invoices: S }), 'application/json');
@@ -524,6 +502,168 @@ async function runDiag() {
   out.push('<li>' + (standalone ? 'التطبيق شغال كتطبيق مثبّت.' : 'مفتوح من المتصفح حاليًا.') + '</li>');
   if (!standalone) out.push('<li>' + (window.__ip ? 'تمام: كروم جاهز يثبّت التطبيق. اضغط زر التثبيت اللي ظهر.' : 'كروم لسه ماعرضش التثبيت. لو كل اللي فوق تمام: اقفل الصفحة وافتحها مرتين، أو استخدم قائمة كروم (⋮) ثم "إضافة إلى الشاشة الرئيسية".') + '</li>');
   $('diagout').innerHTML = '<div class="pv"><ul>' + out.join('') + '</ul></div>';
+}
+
+/* ================= تصدير PDF حقيقي (من غير شاشة طباعة) ================= */
+var PG = { W: 595.28, H: 841.89, M: 36, SC: 2.4 };
+var PC = { ink: '#1a1020', mute: '#6b5a73', line: '#cfc3d6', head: '#f3e3ee', fac: '#fde0f0', mag: '#d4007c', yel: '#fff200' };
+function pfont(size, weight) { return (weight || 400) + ' ' + size + 'px Cairo, "Noto Naskh Arabic", "Noto Sans Arabic", Tahoma, Arial, sans-serif'; }
+var mctx = document.createElement('canvas').getContext('2d');
+function fit(s, maxW, size, weight) {
+  s = String(s); mctx.font = pfont(size, weight);
+  if (mctx.measureText(s).width <= maxW) return s;
+  while (s.length > 1 && mctx.measureText(s + '…').width > maxW) s = s.slice(0, -1);
+  return s + '…';
+}
+function Doc() { this.pages = []; this.np(); }
+Doc.prototype.np = function () { this.ops = []; this.pages.push(this.ops); this.y = PG.M; };
+Doc.prototype.need = function (h, cont) { if (this.y + h > PG.H - PG.M - 14) { this.np(); if (cont) cont(); return true; } return false; };
+Doc.prototype.t = function (s, x, y, size, weight, align, color) { this.ops.push({ k: 't', s: String(s), x: x, y: y, size: size, w: weight || 400, a: align || 'right', c: color || PC.ink }); };
+Doc.prototype.r = function (x, y, w, h, fill) { this.ops.push({ k: 'r', x: x, y: y, w: w, h: h, f: fill }); };
+Doc.prototype.l = function (x1, y1, x2, y2, color, lw) { this.ops.push({ k: 'l', x1: x1, y1: y1, x2: x2, y2: y2, c: color || PC.line, lw: lw || 0.6 }); };
+Doc.prototype.logo = function (x, y, w, h) { this.ops.push({ k: 'i', x: x, y: y, w: w, h: h }); };
+function layoutCols(ws) { var R = PG.W - PG.M, out = []; ws.forEach(function (w) { out.push({ x1: R, x0: R - w, w: w }); R -= w; }); return out; }
+Doc.prototype.row = function (cols, cells, h, opt) {
+  opt = opt || {}; var y = this.y, size = opt.size || 10, self = this;
+  if (opt.fill) this.r(PG.M, y, PG.W - 2 * PG.M, h, opt.fill);
+  cells.forEach(function (c, i) {
+    if (!c) return;
+    var col = cols[i], al = c.a || (i === 0 ? 'right' : 'center');
+    var x = al === 'right' ? col.x1 - 5 : al === 'left' ? col.x0 + 5 : (col.x0 + col.x1) / 2;
+    self.t(fit(c.s, col.w - 10, size, c.w), x, y + h / 2, size, c.w, al, c.c);
+  });
+  if (opt.line !== false) this.l(PG.M, y + h, PG.W - PG.M, y + h);
+  this.y += h;
+};
+function docHeader(d, title, l2, l3) {
+  d.logo(PG.W - PG.M - 40, PG.M, 40, 47);
+  d.t(title, PG.W - PG.M - 50, PG.M + 13, 18, 700, 'right');
+  d.t(l2, PG.W - PG.M - 50, PG.M + 33, 11, 600, 'right');
+  if (l3) d.t(l3, PG.W - PG.M - 50, PG.M + 49, 9.5, 400, 'right', PC.mute);
+  d.y = PG.M + 62; d.l(PG.M, d.y, PG.W - PG.M, d.y, PC.ink, 1); d.y += 8;
+}
+var ICOLS = layoutCols([200, 70, 100, 153]), ONE = layoutCols([523]), TOT = layoutCols([370, 153]);
+function layoutInvoice(d, c, big) {
+  var t = calc(c), ls = lines(c);
+  var title = 'فاتورة رقم ' + c.no + (c.at ? ' - ' + dstr(c.at) + ' ' + tstr(c.at) : '') + (c.cust ? ' - ' + c.cust : '');
+  var head = function () { d.row(ICOLS, [{ s: 'الموديل', w: 700 }, { s: 'الكمية', w: 700 }, { s: 'السعر', w: 700 }, { s: 'الإجمالي', w: 700 }], 20, { fill: PC.head }); };
+  var cont = function () { d.t('فاتورة رقم ' + c.no + ' (تابع)', PG.W - PG.M, d.y + 8, 10, 700, 'right', PC.mute); d.y += 18; head(); };
+  if (big) docHeader(d, 'ابن عز لملابس الأطفال', 'فاتورة رقم ' + c.no + (c.closed ? '' : ' (غير مقفولة)'), dstr(c.at || Date.now()) + (c.cust ? ' - العميل: ' + c.cust : ''));
+  else { d.need(110); d.r(PG.M, d.y, PG.W - 2 * PG.M, 24, PC.fac); d.t(fit(title, 500, 12, 700), PG.W - PG.M - 6, d.y + 12, 12, 700, 'right'); d.y += 28; }
+  head();
+  allFacs(ls).forEach(function (f) {
+    var items = ls.filter(function (l) { return l.f === f; }); if (!items.length) return;
+    d.need(18 + 17 * 2, cont);
+    d.row(ONE, [{ s: f, w: 700 }], 18, { fill: PC.fac });
+    items.forEach(function (l) {
+      d.need(17, cont);
+      d.row(ICOLS, [{ s: l.m, w: 600 }, { s: l.q }, { s: fmt(l.p) }, { s: fmt(r2(l.q * l.p)) }], 17);
+    });
+  });
+  d.need(18 * 3 + 12, cont);
+  d.row(TOT, [{ s: 'الإجمالي (' + t.pcs + ' قطعة)', a: 'right', w: 600 }, { s: fmt(t.gross), w: 700 }], 18);
+  if (t.disc) d.row(TOT, [{ s: 'الخصم' + (c.dtype === 'pct' ? ' (' + fmt(c.dval) + '%)' : ''), a: 'right', w: 600 }, { s: fmt(t.disc), w: 700 }], 18);
+  d.row(TOT, [{ s: 'صافي الفاتورة', a: 'right', w: 700 }, { s: fmt(t.net), w: 700 }], 24, { fill: PC.yel, size: 13, line: false });
+  d.y += 10;
+}
+function layoutReport(d, list, title, sub) {
+  var g = 0, ds = 0, n = 0, pcs = 0;
+  docHeader(d, title, sub, list.length + ' فاتورة');
+  var SC = layoutCols([40, 105, 143, 45, 62, 62, 66]);
+  var head = function () { d.row(SC, ['رقم', 'التاريخ', 'العميل', 'القطع', 'الإجمالي', 'الخصم', 'الصافي'].map(function (s) { return { s: s, w: 700 }; }), 20, { fill: PC.head, size: 9.5 }); };
+  head();
+  list.forEach(function (v) {
+    g += v.snap.gross; ds += v.snap.disc; n += v.snap.net; pcs += v.snap.pcs;
+    d.need(17, head);
+    d.row(SC, [{ s: v.no }, { s: dstr(v.at) + ' ' + tstr(v.at) }, { s: v.cust || '-' }, { s: v.snap.pcs }, { s: fmt(v.snap.gross) }, { s: fmt(v.snap.disc) }, { s: fmt(v.snap.net) }], 17, { size: 9.5 });
+  });
+  d.need(24, head);
+  d.row(layoutCols([288, 45, 62, 62, 66]), [{ s: 'المجموع (' + list.length + ' فاتورة)', a: 'right', w: 700 }, { s: pcs, w: 700 }, { s: fmt(r2(g)), w: 700 }, { s: fmt(r2(ds)), w: 700 }, { s: fmt(r2(n)), w: 700 }], 24, { fill: PC.yel, size: 10.5, line: false });
+  d.y += 16;
+  list.forEach(function (v) { layoutInvoice(d, v, false); d.y += 6; });
+}
+var logoImg = null;
+function loadLogo() {
+  if (logoImg) return Promise.resolve(logoImg);
+  return new Promise(function (res) { var im = new Image(); im.onload = function () { logoImg = im; res(im); }; im.onerror = function () { res(null); }; im.src = 'logo.png'; });
+}
+function fontsReady() {
+  if (!document.fonts || !document.fonts.load) return Promise.resolve();
+  var p = Promise.all([document.fonts.load('400 12px Cairo'), document.fonts.load('600 12px Cairo'), document.fonts.load('700 12px Cairo')]).catch(function () {});
+  return Promise.race([p, new Promise(function (r) { setTimeout(r, 2000); })]);
+}
+async function renderPage(ops, logo, no, total) {
+  var cv = document.createElement('canvas'); cv.width = Math.round(PG.W * PG.SC); cv.height = Math.round(PG.H * PG.SC);
+  var g = cv.getContext('2d'), w = cv.width, h = cv.height;
+  g.fillStyle = '#fff'; g.fillRect(0, 0, w, h); g.scale(PG.SC, PG.SC); g.direction = 'rtl'; g.textBaseline = 'middle';
+  ops.forEach(function (o) {
+    if (o.k === 'r') { g.fillStyle = o.f; g.fillRect(o.x, o.y, o.w, o.h); }
+    else if (o.k === 'l') { g.strokeStyle = o.c; g.lineWidth = o.lw; g.beginPath(); g.moveTo(o.x1, o.y1); g.lineTo(o.x2, o.y2); g.stroke(); }
+    else if (o.k === 't') { g.font = pfont(o.size, o.w); g.fillStyle = o.c; g.textAlign = o.a; g.fillText(o.s, o.x, o.y); }
+    else if (o.k === 'i' && logo) g.drawImage(logo, o.x, o.y, o.w, o.h);
+  });
+  g.font = pfont(8, 400); g.fillStyle = PC.mute; g.textAlign = 'center';
+  g.fillText('ابن عز لملابس الأطفال - صفحة ' + no + ' من ' + total, PG.W / 2, PG.H - 20);
+  var blob = await new Promise(function (r) { cv.toBlob(r, 'image/jpeg', 0.85); });
+  var data = new Uint8Array(await blob.arrayBuffer());
+  cv.width = cv.height = 0;
+  return { data: data, w: w, h: h };
+}
+function buildPDF(imgs) {
+  var enc = new TextEncoder(), chunks = [], offs = [], pos = 0, n = imgs.length;
+  function push(x) { var u = typeof x === 'string' ? enc.encode(x) : x; chunks.push(u); pos += u.length; }
+  function begin(id) { offs[id] = pos; push(id + ' 0 obj\n'); }
+  push('%PDF-1.4\n%âãÏÓ\n');
+  begin(1); push('<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
+  var kids = imgs.map(function (_, i) { return (3 + 3 * i) + ' 0 R'; }).join(' ');
+  begin(2); push('<< /Type /Pages /Count ' + n + ' /Kids [' + kids + '] >>\nendobj\n');
+  imgs.forEach(function (im, i) {
+    var pg = 3 + 3 * i, ct = pg + 1, ig = pg + 2, content = 'q ' + PG.W + ' 0 0 ' + PG.H + ' 0 0 cm /Im0 Do Q';
+    begin(pg); push('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + PG.W + ' ' + PG.H + '] /Resources << /XObject << /Im0 ' + ig + ' 0 R >> >> /Contents ' + ct + ' 0 R >>\nendobj\n');
+    begin(ct); push('<< /Length ' + content.length + ' >>\nstream\n' + content + '\nendstream\nendobj\n');
+    begin(ig); push('<< /Type /XObject /Subtype /Image /Width ' + im.w + ' /Height ' + im.h + ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ' + im.data.length + ' >>\nstream\n');
+    push(im.data); push('\nendstream\nendobj\n');
+  });
+  var total = 3 + 3 * n, xref = pos;
+  push('xref\n0 ' + total + '\n0000000000 65535 f \n');
+  for (var i = 1; i < total; i++) push(String(offs[i]).padStart(10, '0') + ' 00000 n \n');
+  push('trailer\n<< /Size ' + total + ' /Root 1 0 R >>\nstartxref\n' + xref + '\n%%EOF\n');
+  return new Blob(chunks, { type: 'application/pdf' });
+}
+var exporting = false;
+function tick() { return new Promise(function (r) { setTimeout(r, 0); }); }
+function safeName(s) { return String(s || '').replace(/[\\\/:*?"<>|\n\r]+/g, ' ').trim().slice(0, 30); }
+function isoDay() { return new Date().toISOString().slice(0, 10); }
+async function exportPDF(list, opt) {
+  if (exporting) return;
+  if (!list.length) { toast(opt.empty || 'مفيش فواتير تتصدّر.'); return; }
+  exporting = true; toast('بجهّز ملف الـ PDF...');
+  try {
+    await fontsReady(); var logo = await loadLogo(), d = new Doc();
+    if (opt.single) layoutInvoice(d, list[0], true); else layoutReport(d, list, opt.title, opt.sub);
+    var n = d.pages.length, imgs = [];
+    for (var i = 0; i < n; i++) { toast('بجهّز صفحة ' + (i + 1) + ' من ' + n); imgs.push(await renderPage(d.pages[i], logo, i + 1, n)); await tick(); }
+    dl(opt.name, buildPDF(imgs), 'application/pdf');
+    toast('اتحمّل الملف ' + opt.name + '. هتلاقيه في التحميلات.');
+  } catch (e) { toast('حصلت مشكلة في عمل الـ PDF. جرّب تاني.'); }
+  exporting = false;
+}
+function exportOne(c) {
+  exportPDF([c], { single: true, name: 'فاتورة-' + c.no + (c.cust ? '-' + safeName(c.cust) : '') + '.pdf' });
+}
+function exportClosed(scope) {
+  var today = dstr(Date.now());
+  var list = S.invs.filter(function (v) { return v.closed && v.snap; });
+  if (scope === 'today') list = list.filter(function (v) { return dstr(v.at) === today; });
+  list.sort(function (a, b) { return a.at - b.at; });
+  exportPDF(list, { title: 'فواتير ابن عز لملابس الأطفال',
+    sub: scope === 'today' ? 'فواتير النهارده ' + today : (list.length ? 'كل الفواتير المقفولة من ' + dstr(list[0].at) + ' إلى ' + dstr(list[list.length - 1].at) : ''),
+    name: (scope === 'today' ? 'فواتير-النهارده-' : 'فواتير-ابن-عز-') + isoDay() + '.pdf',
+    empty: scope === 'today' ? 'مفيش فواتير مقفولة النهارده.' : 'مفيش فواتير مقفولة تتصدّر.' });
+}
+function exportHist() {
+  var list = histList().slice().sort(function (a, b) { return a.at - b.at; });
+  exportPDF(list, { title: 'سجل فواتير ابن عز', sub: histScope === 'today' ? 'فواتير النهارده ' + dstr(Date.now()) : 'الفواتير المقفولة', name: 'سجل-الفواتير-' + isoDay() + '.pdf', empty: 'مفيش فواتير في السجل تتصدّر.' });
 }
 
 /* ================= التنقل والأحداث ================= */
@@ -581,13 +721,16 @@ document.addEventListener('click', function (e) {
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(function () { toast('اتنسخت. الصقها في واتساب.'); }, fb); else fb();
     return;
   }
-  if (b.id === 'print') return printInv(cur());
+  if (b.id === 'exp') return exportOne(cur());
+  if (d.pdf) { var vv = null; S.invs.forEach(function (v) { if (v.id === d.pdf) vv = v; }); if (vv) exportOne(vv); return; }
+  if (b.id === 'hexp') return exportHist();
   if (b.id === 'impbtn') return $('impf').click();
   if (b.id === 'applyimp') return applyImport();
   if (b.id === 'cancelimp') { pending = null; $('imp').innerHTML = ''; return; }
   if (b.id === 'diag') return runDiag();
   if (b.id === 'bk') return backup();
-  if (b.id === 'csv') return exportCSV();
+  if (b.id === 'pdf-today') return exportClosed('today');
+  if (b.id === 'pdf-all') return exportClosed('all');
   if (b.id === 'rs') return $('rsf').click();
   if (b.id === 'applyrs') return applyRestore();
   if (b.id === 'cancelrs') { restore.pending = null; $('rsmsg').innerHTML = ''; return; }
