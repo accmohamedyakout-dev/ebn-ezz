@@ -140,7 +140,7 @@ function renderModels() {
   $('count').textContent = q || factory ? (res.length + ' نتيجة') : ('كل الموديلات (' + P.items.length + ')');
   if (!res.length) { $('list').innerHTML = '<li class="empty">مفيش موديل بالرقم ده. راجع الرقم وجرب تاني.</li>'; return; }
   $('list').innerHTML = res.slice(0, 100).map(function (r) {
-    return '<li class="card' + (inCur(r.id) ? ' in' : '') + '" data-id="' + esc(r.id) + '"><div class="top"><div class="model">' + hl(r.m, q) + '</div><div class="factory">' + hl(r.f, q) + '</div></div>' +
+    return '<li class="card' + (inCur(r.id) ? ' in' : '') + '" data-id="' + esc(r.id) + '"><div class="top"><div class="factory">' + hl(r.f, q) + '</div><div class="model">' + hl(r.m, q) + '</div></div>' +
       '<div class="prices"><div class="tile whole"><span>سعر الجملة</span><b>' + fmt(r.p) + '</b></div>' +
       '<div class="tile sell"><span>سعر البيع</span><b>' + fmt(r.s) + '</b></div></div>' +
       '<div class="act">' + actHtml(r) + '</div></li>';
@@ -151,13 +151,20 @@ function facCount(f) {
   if (c && !c.closed) Object.keys(c.items).forEach(function (k) { if (BYKEY[k] && BYKEY[k].f === f) n += c.items[k]; });
   return n;
 }
+var ddOpen = false;
 function renderChips() {
-  var h = '<button class="chip" aria-pressed="' + (factory === '') + '" data-f="">الكل</button>';
+  if (!P.items.length) { $('chips').innerHTML = ''; return; }
+  var tot = 0, h = '';
+  facs.forEach(function (f) { tot += facCount(f); });
+  var cc = factory === '' ? tot : facCount(factory);
+  h += '<button type="button" class="ddbtn" aria-haspopup="listbox" aria-expanded="' + ddOpen + '"><span class="ddl">المصنع</span><b>' + (factory === '' ? 'كل المصانع' : esc(factory)) + '</b>' + (cc ? '<span class="badge">' + cc + '</span>' : '') + '<i class="ddar" aria-hidden="true"></i></button>';
+  h += '<div class="ddlist" role="listbox"' + (ddOpen ? '' : ' hidden') + '><button type="button" role="option" class="ddi" aria-selected="' + (factory === '') + '" data-f="">كل المصانع</button>';
   facs.forEach(function (f) {
     var c = facCount(f);
-    h += '<button class="chip" aria-pressed="' + (factory === f) + '" data-f="' + esc(f) + '">' + esc(f) + (c ? '<span class="badge">' + c + '</span>' : '') + '</button>';
+    h += '<button type="button" role="option" class="ddi" aria-selected="' + (factory === f) + '" data-f="' + esc(f) + '"><span>' + esc(f) + '</span>' + (c ? '<span class="badge">' + c + '</span>' : '') + '</button>';
   });
-  $('chips').innerHTML = P.items.length ? h : '';
+  h += '</div>';
+  $('chips').innerHTML = h;
 }
 function renderTabs() {
   var c = cur(); if (!c) return;
@@ -746,7 +753,12 @@ document.addEventListener('change', function (e) {
 document.addEventListener('input', function (e) {
   if (e.target.id === 'dval') { var c = cur(); c.dval = Math.max(0, parseFloat(e.target.value) || 0); saveInv(); updateTotals(); }
 });
-$('chips').addEventListener('click', function (e) { var b = e.target.closest('.chip'); if (!b) return; factory = b.getAttribute('data-f'); renderChips(); renderModels(); });
+$('chips').addEventListener('click', function (e) {
+  var i = e.target.closest('.ddi');
+  if (i) { factory = i.getAttribute('data-f'); ddOpen = false; renderChips(); renderModels(); return; }
+  if (e.target.closest('.ddbtn')) { ddOpen = !ddOpen; renderChips(); }
+});
+document.addEventListener('click', function (e) { if (ddOpen && e.target.isConnected && !e.target.closest('#chips')) { ddOpen = false; renderChips(); } });
 $('q').addEventListener('input', renderModels);
 $('clr').addEventListener('click', function () { $('q').value = ''; renderModels(); $('q').focus(); });
 $('cust').addEventListener('input', function () { var c = cur(); if (c && !c.closed) { c.cust = this.value; saveInv(); } });

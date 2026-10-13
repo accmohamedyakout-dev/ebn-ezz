@@ -1,5 +1,5 @@
 /* يخزن ملفات التطبيق عشان يشتغل من غير نت. غيّر رقم النسخة لو عدلت الملفات. */
-var V = 'ebn-ezz-v6';
+var V = 'ebn-ezz-v8';
 var SHELL = ['./', 'index.html', 'style.css', 'app.js', 'manifest.webmanifest',
   'logo.png', 'icon-192.png', 'icon-512.png', 'favicon.png'];
 
