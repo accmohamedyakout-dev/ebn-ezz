@@ -1,16 +1,19 @@
 {
-  "name": "مكتب المجد لملابس الأطفال",
-  "short_name": "مكتب المجد",
+  "id": "./",
+  "name": "ابن عز - الموديلات والفواتير",
+  "short_name": "ابن عز",
+  "description": "بحث برقم الموديل وعمل الفواتير لمحل ابن عز لملابس الأطفال",
   "lang": "ar",
   "dir": "rtl",
-  "start_url": "./index.html",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#16467a",
-  "theme_color": "#16467a",
+  "orientation": "portrait",
+  "background_color": "#fff4fa",
+  "theme_color": "#d4007c",
   "icons": [
-    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
   ]
 }

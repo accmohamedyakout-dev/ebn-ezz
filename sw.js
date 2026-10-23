@@ -1,26 +1,32 @@
-// غيّر رقم النسخة عند أي تعديل في ملفات التطبيق عشان الموبايل يحدّث
-var VERSION = "majd-v2";
-var FILES = ["./", "index.html", "style.css", "app.js", "manifest.webmanifest",
-  "lib/xlsx.mini.min.js", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png", "icons/icon-maskable-512.png", "icons/logo.png"];
+/* يخزن ملفات التطبيق عشان يشتغل من غير نت. غيّر رقم النسخة لو عدلت الملفات. */
+var V = 'ebn-ezz-v9';
+var SHELL = ['./', 'index.html', 'style.css', 'app.js', 'manifest.webmanifest',
+  'logo.png', 'icon-192.png', 'icon-512.png', 'favicon.png'];
 
-self.addEventListener("install", function (e) {
-  e.waitUntil(caches.open(VERSION).then(function (c) { return c.addAll(FILES); }).then(function () { return self.skipWaiting(); }));
+self.addEventListener('install', function (e) {
+  /* كل ملف لوحده: لو ملف ناقص، التثبيت مايفشلش كله */
+  e.waitUntil(caches.open(V).then(function (c) {
+    return Promise.all(SHELL.map(function (u) { return c.add(u).catch(function () {}); }));
+  }).then(function () { return self.skipWaiting(); }));
 });
-self.addEventListener("activate", function (e) {
+self.addEventListener('activate', function (e) {
   e.waitUntil(caches.keys().then(function (ks) {
-    return Promise.all(ks.filter(function (k) { return k !== VERSION; }).map(function (k) { return caches.delete(k); }));
+    return Promise.all(ks.filter(function (k) { return k !== V; }).map(function (k) { return caches.delete(k); }));
   }).then(function () { return self.clients.claim(); }));
 });
-self.addEventListener("fetch", function (e) {
+self.addEventListener('fetch', function (e) {
   var req = e.request;
-  if (req.method !== "GET") return;
+  if (req.method !== 'GET') return;
   var url = new URL(req.url);
-  if (url.origin !== location.origin || url.pathname.endsWith("data.xlsx")) return; // ملف البيانات دايماً من النت
-  e.respondWith(
-    fetch(req).then(function (res) {
-      var copy = res.clone();
-      caches.open(VERSION).then(function (c) { c.put(req, copy); });
-      return res;
-    }).catch(function () { return caches.match(req).then(function (r) { return r || caches.match("index.html"); }); })
-  );
+  var ok = url.origin === location.origin || /(^|\.)fonts\.(googleapis|gstatic)\.com$/.test(url.hostname);
+  if (!ok) return;
+  e.respondWith(caches.open(V).then(function (cache) {
+    return cache.match(req).then(function (hit) {
+      var net = fetch(req).then(function (res) {
+        if (res && (res.ok || res.type === 'opaque')) cache.put(req, res.clone());
+        return res;
+      }).catch(function () { return hit || (req.mode === 'navigate' ? cache.match('index.html') : Response.error()); });
+      return hit || net;
+    });
+  }));
 });
